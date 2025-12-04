@@ -35,3 +35,8 @@ export const isInWatchlist = (id: string): boolean => {
   const current = getWatchlist();
   return current.includes(id);
 };
+
+export const clearWatchlist = (): void => {
+  localStorage.removeItem(WATCHLIST_KEY);
+  console.log(`[Audit] Watchlist Cleared at ${new Date().toISOString()}`);
+};

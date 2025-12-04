@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Calendar, ChevronLeft, ChevronRight, Menu, Bell, BellOff } from 'lucide-react';
+import { Search, Calendar, ChevronLeft, ChevronRight, Menu, Bell, BellOff, Settings } from 'lucide-react';
 
 interface HeaderProps {
   currentDate: Date;
@@ -8,6 +8,7 @@ interface HeaderProps {
   onSearchChange: (query: string) => void;
   notificationsEnabled: boolean;
   onToggleNotifications: () => void;
+  onOpenSettings: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ 
@@ -16,7 +17,8 @@ const Header: React.FC<HeaderProps> = ({
   searchQuery, 
   onSearchChange,
   notificationsEnabled,
-  onToggleNotifications
+  onToggleNotifications,
+  onOpenSettings
 }) => {
   
   const formatDate = (date: Date) => {
@@ -47,13 +49,10 @@ const Header: React.FC<HeaderProps> = ({
             
             <div className="flex items-center gap-2 md:hidden">
               <button 
-                onClick={onToggleNotifications}
-                className={`p-2 rounded-full transition-colors ${notificationsEnabled ? 'text-purple-400 bg-purple-400/10' : 'text-slate-400'}`}
+                onClick={onOpenSettings}
+                className="p-2 rounded-full text-slate-400 hover:text-white transition-colors"
               >
-                {notificationsEnabled ? <Bell size={20} /> : <BellOff size={20} />}
-              </button>
-              <button className="text-slate-400 hover:text-white">
-                <Menu size={24} />
+                <Settings size={20} />
               </button>
             </div>
           </div>
@@ -87,14 +86,23 @@ const Header: React.FC<HeaderProps> = ({
               />
             </div>
             
-            {/* Desktop Notification Toggle */}
-            <button 
-              onClick={onToggleNotifications}
-              className={`hidden md:flex p-2 rounded-lg transition-colors border border-transparent ${notificationsEnabled ? 'text-purple-400 bg-purple-400/10 border-purple-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-              title={notificationsEnabled ? "Disable Alerts" : "Enable Alerts"}
-            >
-              {notificationsEnabled ? <Bell size={20} /> : <BellOff size={20} />}
-            </button>
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-2">
+              <button 
+                onClick={onToggleNotifications}
+                className={`p-2 rounded-lg transition-colors border border-transparent ${notificationsEnabled ? 'text-purple-400 bg-purple-400/10 border-purple-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                title={notificationsEnabled ? "Disable Alerts" : "Enable Alerts"}
+              >
+                {notificationsEnabled ? <Bell size={20} /> : <BellOff size={20} />}
+              </button>
+              <button 
+                onClick={onOpenSettings}
+                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                title="Settings"
+              >
+                <Settings size={20} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
