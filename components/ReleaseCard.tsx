@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Clock, Star, Bookmark, Share2, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Play, Clock, Star, Bookmark, Share2, Sparkles, Image as ImageIcon, Video } from 'lucide-react';
 import { AnimeRelease, ViewMode, Category } from '../types';
 import { toggleWatchlist, isInWatchlist } from '../services/storage';
 
@@ -7,6 +7,7 @@ interface ReleaseCardProps {
   release: AnimeRelease;
   viewMode: ViewMode;
   onAiClick: (release: AnimeRelease) => void;
+  onTrailerClick: (url: string, title: string) => void;
 }
 
 interface TimeState {
@@ -15,7 +16,7 @@ interface TimeState {
   minutes: number;
 }
 
-const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick }) => {
+const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick, onTrailerClick }) => {
   const [inWatchlist, setInWatchlist] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<TimeState | null>(null);
   const [isLive, setIsLive] = useState(false);
@@ -149,6 +150,14 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick 
                <button onClick={() => onAiClick(release)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600/10 hover:bg-purple-600/20 text-purple-300 text-xs transition-colors border border-purple-500/20">
                   <Sparkles size={12} /> Pulse AI
                </button>
+               {release.trailerUrl && (
+                <button 
+                  onClick={() => onTrailerClick(release.trailerUrl!, release.title)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/5 hover:bg-white/10 text-white text-xs transition-colors border border-white/10"
+                >
+                    <Video size={12} /> Trailer
+                </button>
+               )}
                <button onClick={handleWatchlist} className={`p-1.5 rounded-md transition-colors ${inWatchlist ? 'text-pink-400 bg-pink-400/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
                   <Bookmark size={14} fill={inWatchlist ? "currentColor" : "none"} />
                </button>
@@ -191,9 +200,18 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick 
 
         {/* Hover Actions Overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-slate-950/40 backdrop-blur-[2px] z-10 pointer-events-none">
-           <button className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all transform scale-90 group-hover:scale-110 shadow-lg pointer-events-auto hover:bg-purple-500 hover:border-purple-400">
-              <Play size={20} fill="currentColor" className="ml-0.5" />
-           </button>
+           {release.trailerUrl ? (
+             <button 
+                onClick={() => onTrailerClick(release.trailerUrl!, release.title)}
+                className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all transform scale-90 group-hover:scale-110 shadow-lg pointer-events-auto hover:bg-purple-500 hover:border-purple-400"
+              >
+                <Play size={20} fill="currentColor" className="ml-0.5" />
+             </button>
+           ) : (
+            <div className="px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-medium text-white pointer-events-auto">
+              No Trailer
+            </div>
+           )}
         </div>
       </div>
 

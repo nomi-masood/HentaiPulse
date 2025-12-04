@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LayoutGrid, List as ListIcon, Loader2, RefreshCw, Filter } from 'lucide-react';
 import Header from './components/Header';
 import ReleaseCard from './components/ReleaseCard';
 import PulseAIModal from './components/PulseAIModal';
+import TrailerModal from './components/TrailerModal';
+import AgeGate from './components/AgeGate';
 import { AnimeRelease, ViewMode, Category } from './types';
 import { fetchSchedule } from './services/mockData';
 
@@ -14,6 +16,18 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
   const [selectedReleaseForAi, setSelectedReleaseForAi] = useState<AnimeRelease | null>(null);
+  
+  // Notification State
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const notifiedIds = useRef<Set<string>>(new Set());
+
+  // Trailer State
+  const [trailerUrl, setTrailerUrl] = useState<string | null>(null);
+  const [trailerTitle, setTrailerTitle] = useState<string | null>(null);
+
+  // Swipe State
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
 
   // Data Fetching
   const loadData = async () => {
@@ -33,6 +47,85 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate]);
 
+  // Check for notifications permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
+  }, []);
+
+  // Notification Monitor
+  useEffect(() => {
+    if (!notificationsEnabled) return;
+
+    const checkReleases = () => {
+      const now = Date.now();
+      releases.forEach(release => {
+        const releaseTime = new Date(release.releaseDate).getTime();
+        const diff = releaseTime - now;
+        
+        // Notify if within 15 minutes and not notified yet
+        if (diff > 0 && diff <= 15 * 60 * 1000 && !notifiedIds.current.has(release.id)) {
+          new Notification(`Releasing Soon: ${release.title}`, {
+            body: `Starts in ${Math.ceil(diff / 60000)} minutes!`,
+            icon: release.imageUrl
+          });
+          notifiedIds.current.add(release.id);
+        }
+      });
+    };
+
+    const interval = setInterval(checkReleases, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [releases, notificationsEnabled]);
+
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) return;
+    
+    if (notificationsEnabled) {
+      setNotificationsEnabled(false);
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      setNotificationsEnabled(true);
+      new Notification("HentaiPulse", { body: "Notifications enabled! We'll alert you 15m before releases." });
+    }
+  };
+
+  // Swipe Handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (isLeftSwipe) {
+      const next = new Date(currentDate);
+      next.setDate(next.getDate() + 1);
+      setCurrentDate(next);
+    }
+    
+    if (isRightSwipe) {
+      const prev = new Date(currentDate);
+      prev.setDate(prev.getDate() - 1);
+      setCurrentDate(prev);
+    }
+
+    // Reset
+    setTouchStart(0);
+    setTouchEnd(0);
+  };
+
   // Filtering Logic
   const filteredReleases = releases.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -42,13 +135,22 @@ const App: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-200 font-sans selection:bg-purple-500/30">
+    <div 
+      className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-200 font-sans selection:bg-purple-500/30"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      
+      <AgeGate />
       
       <Header 
         currentDate={currentDate} 
         onDateChange={setCurrentDate}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        notificationsEnabled={notificationsEnabled}
+        onToggleNotifications={requestNotificationPermission}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-6">
@@ -128,6 +230,10 @@ const App: React.FC = () => {
                 release={release} 
                 viewMode={viewMode} 
                 onAiClick={setSelectedReleaseForAi}
+                onTrailerClick={(url, title) => {
+                  setTrailerUrl(url);
+                  setTrailerTitle(title);
+                }}
               />
             ))}
           </div>
@@ -139,6 +245,16 @@ const App: React.FC = () => {
       <PulseAIModal 
         release={selectedReleaseForAi} 
         onClose={() => setSelectedReleaseForAi(null)} 
+      />
+
+      {/* Trailer Modal */}
+      <TrailerModal 
+        trailerUrl={trailerUrl}
+        title={trailerTitle}
+        onClose={() => {
+          setTrailerUrl(null);
+          setTrailerTitle(null);
+        }}
       />
 
     </div>
