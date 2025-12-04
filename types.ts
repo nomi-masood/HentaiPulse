@@ -9,7 +9,6 @@ export interface AnimeRelease {
   title: string;
   description: string;
   imageUrl: string;
-  trailerUrl?: string; // New field for video previews
   releaseDate: string; // ISO String
   category: Category;
   source: string;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Clock, Star, Bookmark, Share2, Sparkles, Image as ImageIcon, Video, Check } from 'lucide-react';
+import { Play, Clock, Star, Bookmark, Share2, Sparkles, Image as ImageIcon } from 'lucide-react';
 import { AnimeRelease, ViewMode, Category } from '../types';
 import { toggleWatchlist, isInWatchlist } from '../services/storage';
 
@@ -7,8 +7,6 @@ interface ReleaseCardProps {
   release: AnimeRelease;
   viewMode: ViewMode;
   onAiClick: (release: AnimeRelease) => void;
-  onTrailerClick: (url: string, title: string) => void;
-  safeMode: boolean;
 }
 
 interface TimeState {
@@ -17,14 +15,11 @@ interface TimeState {
   minutes: number;
 }
 
-const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick, onTrailerClick, safeMode }) => {
+const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick }) => {
   const [inWatchlist, setInWatchlist] = useState(false);
-  const [justAdded, setJustAdded] = useState(false);
-  const [isShared, setIsShared] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<TimeState | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
 
   useEffect(() => {
     setImageLoaded(false);
@@ -61,39 +56,6 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
     e.stopPropagation();
     const added = toggleWatchlist(release.id);
     setInWatchlist(added);
-    
-    if (added) {
-      setJustAdded(true);
-      setTimeout(() => setJustAdded(false), 1500);
-    } else {
-      setJustAdded(false);
-    }
-  };
-
-  const handleShare = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const shareData = {
-      title: `HentaiPulse: ${release.title}`,
-      text: `Check out ${release.title} releasing on ${release.source}!`,
-      url: window.location.href
-    };
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        // Share cancelled or failed, ignore
-      }
-    } else {
-      // Fallback: Copy to clipboard
-      try {
-        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
-        setIsShared(true);
-        setTimeout(() => setIsShared(false), 2000);
-      } catch (err) {
-        console.error('Failed to copy', err);
-      }
-    }
   };
 
   const getCategoryColor = (cat: Category) => {
@@ -104,6 +66,7 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
     }
   };
 
+  // Helper to render the timer UI consistently
   const renderTimer = () => {
     if (isLive) {
       return (
@@ -137,17 +100,11 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
     );
   };
 
-  // Safe Mode Logic: Blur if safeMode is ON and NOT hovered
-  const shouldBlur = safeMode && !isHovered;
-
   if (viewMode === ViewMode.List) {
     return (
-      <div 
-        className="group relative overflow-hidden rounded-xl bg-slate-900/40 border border-white/5 hover:bg-slate-800/60 transition-all duration-300 hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10 flex items-center p-3 gap-4"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
+      <div className="group relative overflow-hidden rounded-xl bg-slate-900/40 border border-white/5 hover:bg-slate-800/60 transition-all duration-300 hover:border-purple-500/30 hover:shadow-lg hover:shadow-purple-500/10 flex items-center p-3 gap-4">
          <div className="relative w-24 h-32 flex-shrink-0 rounded-lg overflow-hidden bg-slate-800/50">
+            {/* Skeleton Background with Icon */}
             <div className={`absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 animate-pulse flex items-center justify-center transition-opacity duration-700 ${imageLoaded ? 'opacity-0' : 'opacity-100'}`}>
               <ImageIcon className="text-slate-700/50" size={24} />
             </div>
@@ -157,10 +114,7 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
                alt={release.title} 
                loading="lazy"
                onLoad={() => setImageLoaded(true)}
-               className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ease-out 
-                 ${imageLoaded ? 'opacity-100' : 'opacity-0'}
-                 ${shouldBlur ? 'blur-lg scale-110' : 'blur-0 scale-100'}
-               `} 
+               className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ease-out ${imageLoaded ? 'opacity-100 blur-0 scale-100' : 'opacity-0 blur-xl scale-110'}`} 
             />
              {isLive && (
               <div className="absolute top-0 left-0 w-full bg-red-600/90 text-white text-[9px] font-bold text-center py-0.5 z-10 uppercase tracking-wider">
@@ -187,27 +141,13 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
             
             <div className="flex items-center gap-2 text-xs text-slate-400 mb-3">
                <span className="text-purple-400 font-medium">{release.source}</span>
+               <span className="text-slate-600">•</span>
                <span className="truncate max-w-[200px]">{release.tags.slice(0, 3).join(', ')}</span>
             </div>
             
             <div className="flex gap-2">
                <button onClick={() => onAiClick(release)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-purple-600/10 hover:bg-purple-600/20 text-purple-300 text-xs transition-colors border border-purple-500/20">
                   <Sparkles size={12} /> Pulse AI
-               </button>
-               {release.trailerUrl && (
-                <button 
-                  onClick={() => onTrailerClick(release.trailerUrl!, release.title)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/5 hover:bg-white/10 text-white text-xs transition-colors border border-white/10"
-                >
-                    <Video size={12} /> Trailer
-                </button>
-               )}
-               <button 
-                onClick={handleShare} 
-                className={`p-1.5 rounded-md transition-colors ${isShared ? 'text-green-400 bg-green-400/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
-                title={isShared ? "Copied!" : "Share"}
-               >
-                  {isShared ? <Check size={14} /> : <Share2 size={14} />}
                </button>
                <button onClick={handleWatchlist} className={`p-1.5 rounded-md transition-colors ${inWatchlist ? 'text-pink-400 bg-pink-400/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
                   <Bookmark size={14} fill={inWatchlist ? "currentColor" : "none"} />
@@ -220,14 +160,11 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
 
   // Grid View
   return (
-    <div 
-      className="group relative rounded-2xl bg-slate-900/40 border border-white/5 hover:border-purple-500/30 overflow-hidden hover:shadow-xl hover:shadow-purple-900/20 transition-all duration-300 flex flex-col h-full"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="group relative rounded-2xl bg-slate-900/40 border border-white/5 hover:border-purple-500/30 overflow-hidden hover:shadow-xl hover:shadow-purple-900/20 transition-all duration-300 flex flex-col h-full">
       
       {/* Image Section */}
       <div className="relative aspect-[3/4] overflow-hidden bg-slate-800/50">
+        {/* Skeleton Background with Icon */}
         <div className={`absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 animate-pulse flex items-center justify-center transition-opacity duration-700 ${imageLoaded ? 'opacity-0' : 'opacity-100'}`}>
            <ImageIcon className="text-slate-700/50" size={32} />
         </div>
@@ -237,10 +174,7 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
           alt={release.title}
           loading="lazy"
           onLoad={() => setImageLoaded(true)}
-          className={`w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-110 
-            ${imageLoaded ? 'opacity-100' : 'opacity-0'}
-            ${shouldBlur ? 'blur-lg scale-110' : 'blur-0 scale-100'}
-          `} 
+          className={`w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-110 ${imageLoaded ? 'opacity-100 blur-0 scale-100' : 'opacity-0 blur-xl scale-110'}`} 
         />
         
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-90" />
@@ -257,18 +191,9 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
 
         {/* Hover Actions Overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-slate-950/40 backdrop-blur-[2px] z-10 pointer-events-none">
-           {release.trailerUrl ? (
-             <button 
-                onClick={() => onTrailerClick(release.trailerUrl!, release.title)}
-                className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all transform scale-90 group-hover:scale-110 shadow-lg pointer-events-auto hover:bg-purple-500 hover:border-purple-400"
-              >
-                <Play size={20} fill="currentColor" className="ml-0.5" />
-             </button>
-           ) : (
-            <div className="px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-medium text-white pointer-events-auto">
-              No Trailer
-            </div>
-           )}
+           <button className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all transform scale-90 group-hover:scale-110 shadow-lg pointer-events-auto hover:bg-purple-500 hover:border-purple-400">
+              <Play size={20} fill="currentColor" className="ml-0.5" />
+           </button>
         </div>
       </div>
 
@@ -304,23 +229,14 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
            </button>
 
            <div className="flex gap-2">
-             <button 
-                onClick={handleShare}
-                className={`transition-colors ${isShared ? 'text-green-400' : 'text-slate-400 hover:text-white'}`}
-                title="Share"
-             >
-                {isShared ? <Check size={16} /> : <Share2 size={16} />}
+             <button className="text-slate-400 hover:text-white transition-colors">
+                <Share2 size={16} />
              </button>
              <button 
                 onClick={handleWatchlist}
-                className={`transition-all duration-300 transform ${inWatchlist ? 'text-pink-500' : 'text-slate-400 hover:text-white'} ${justAdded ? 'scale-125 rotate-12' : 'hover:scale-110'}`}
-                title={inWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
+                className={`transition-colors ${inWatchlist ? 'text-pink-500' : 'text-slate-400 hover:text-white'}`}
               >
-                {justAdded ? (
-                   <Check size={16} className="animate-in zoom-in duration-300" />
-                ) : (
-                   <Bookmark size={16} fill={inWatchlist ? "currentColor" : "none"} />
-                )}
+                <Bookmark size={16} fill={inWatchlist ? "currentColor" : "none"} />
              </button>
            </div>
         </div>

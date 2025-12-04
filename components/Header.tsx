@@ -1,25 +1,14 @@
 import React from 'react';
-import { Search, Calendar, ChevronLeft, ChevronRight, Menu, Bell, BellOff, Settings } from 'lucide-react';
+import { Search, Calendar, ChevronLeft, ChevronRight, Menu } from 'lucide-react';
 
 interface HeaderProps {
   currentDate: Date;
   onDateChange: (date: Date) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  notificationsEnabled: boolean;
-  onToggleNotifications: () => void;
-  onOpenSettings: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ 
-  currentDate, 
-  onDateChange, 
-  searchQuery, 
-  onSearchChange,
-  notificationsEnabled,
-  onToggleNotifications,
-  onOpenSettings
-}) => {
+const Header: React.FC<HeaderProps> = ({ currentDate, onDateChange, searchQuery, onSearchChange }) => {
   
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(date);
@@ -46,15 +35,9 @@ const Header: React.FC<HeaderProps> = ({
                 Hentai<span className="font-semibold text-purple-400">Pulse</span>
               </h1>
             </div>
-            
-            <div className="flex items-center gap-2 md:hidden">
-              <button 
-                onClick={onOpenSettings}
-                className="p-2 rounded-full text-slate-400 hover:text-white transition-colors"
-              >
-                <Settings size={20} />
-              </button>
-            </div>
+            <button className="md:hidden text-slate-400 hover:text-white">
+              <Menu size={24} />
+            </button>
           </div>
 
           {/* Date Navigation */}
@@ -71,38 +54,18 @@ const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
-          {/* Search Bar & Actions */}
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative group w-full md:w-64">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={16} className="text-slate-500 group-focus-within:text-purple-400 transition-colors" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Search releases..."
-                className="block w-full pl-10 pr-3 py-2 border border-slate-700 rounded-xl leading-5 bg-slate-900/50 text-slate-300 placeholder-slate-500 focus:outline-none focus:bg-slate-900 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 sm:text-sm transition-all duration-200"
-              />
+          {/* Search Bar */}
+          <div className="relative group w-full md:w-64">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search size={16} className="text-slate-500 group-focus-within:text-purple-400 transition-colors" />
             </div>
-            
-            {/* Desktop Actions */}
-            <div className="hidden md:flex items-center gap-2">
-              <button 
-                onClick={onToggleNotifications}
-                className={`p-2 rounded-lg transition-colors border border-transparent ${notificationsEnabled ? 'text-purple-400 bg-purple-400/10 border-purple-500/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-                title={notificationsEnabled ? "Disable Alerts" : "Enable Alerts"}
-              >
-                {notificationsEnabled ? <Bell size={20} /> : <BellOff size={20} />}
-              </button>
-              <button 
-                onClick={onOpenSettings}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                title="Settings"
-              >
-                <Settings size={20} />
-              </button>
-            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Search releases..."
+              className="block w-full pl-10 pr-3 py-2 border border-slate-700 rounded-xl leading-5 bg-slate-900/50 text-slate-300 placeholder-slate-500 focus:outline-none focus:bg-slate-900 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 sm:text-sm transition-all duration-200"
+            />
           </div>
         </div>
       </div>

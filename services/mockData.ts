@@ -4,6 +4,16 @@ const TITLES_PREFIX = ["Secret", "Midnight", "Forbidden", "Campus", "Dungeon", "
 const TITLES_SUFFIX = ["Lovers", "Lesson", "Chronicles", "Desire", "Attack", "Protocol", "Vacation", "Fantasy", "Teacher", "Diaries", "Paradox", "Bondage", "Resort", "Harem"];
 const SOURCES = ["Hentai Haven", "HentaiFF", "HentaiSun", "EroEroNews", "Hanime.tv"];
 const TAGS_POOL = ["Romance", "Vanilla", "NTR", "Mind Break", "Fantasy", "Sci-Fi", "School", "Office", "Monster", "Succubus", "Elf", "Maid", "Tutor", "Uncensored"];
+const IMAGES_POOL = [
+  'https://picsum.photos/400/600?random=1',
+  'https://picsum.photos/400/600?random=2',
+  'https://picsum.photos/400/600?random=3',
+  'https://picsum.photos/400/600?random=4',
+  'https://picsum.photos/400/600?random=5',
+  'https://picsum.photos/400/600?random=6',
+  'https://picsum.photos/400/600?random=7',
+  'https://picsum.photos/400/600?random=8',
+];
 
 // Simple pseudo-random generator seeded by a string (the date)
 // Ensures that for a specific date, the "random" data is always the same.
@@ -55,7 +65,6 @@ const generateMockSchedule = (date: Date): AnimeRelease[] => {
       title: title,
       description: `A generated synopsis for ${title}. In a world where ${itemTags.values().next().value} is common, characters explore their deepest desires.`,
       imageUrl: `https://picsum.photos/400/600?random=${Math.floor(rand() * 1000)}`,
-      trailerUrl: rand() > 0.5 ? 'https://www.youtube.com/embed/dQw4w9WgXcQ' : undefined, // 50% chance of mock trailer
       releaseDate: releaseDate.toISOString(),
       category: category,
       episodeNumber: category === Category.Episode ? Math.floor(rand() * 4) + 1 : undefined,
@@ -95,10 +104,6 @@ query ($start: Int, $end: Int) {
         isAdult
         genres
         siteUrl
-        trailer {
-          id
-          site
-        }
       }
     }
   }
@@ -157,17 +162,11 @@ export const fetchSchedule = async (date: Date): Promise<AnimeRelease[]> => {
       const rawDesc = media.description || 'No description available.';
       const description = rawDesc.replace(/<[^>]*>?/gm, '');
 
-      let trailerUrl = undefined;
-      if (media.trailer?.site === 'youtube' && media.trailer?.id) {
-        trailerUrl = `https://www.youtube.com/embed/${media.trailer.id}`;
-      }
-
       return {
         id: media.id.toString(),
         title: title,
         description: description,
         imageUrl: media.coverImage.extraLarge || media.coverImage.large,
-        trailerUrl: trailerUrl,
         releaseDate: new Date(item.airingAt * 1000).toISOString(),
         category: category,
         episodeNumber: item.episode,

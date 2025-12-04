@@ -1,16 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutGrid, List as ListIcon, Loader2, RefreshCw, Filter } from 'lucide-react';
 import Header from './components/Header';
 import ReleaseCard from './components/ReleaseCard';
 import PulseAIModal from './components/PulseAIModal';
-import TrailerModal from './components/TrailerModal';
-import SettingsModal from './components/SettingsModal';
-import AgeGate from './components/AgeGate';
 import { AnimeRelease, ViewMode, Category } from './types';
 import { fetchSchedule } from './services/mockData';
-import { clearWatchlist } from './services/storage';
-
-const SAFE_MODE_KEY = 'hentaipulse_safe_mode';
 
 const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -20,42 +14,6 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
   const [selectedReleaseForAi, setSelectedReleaseForAi] = useState<AnimeRelease | null>(null);
-  
-  // Settings State
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [safeMode, setSafeMode] = useState<boolean>(false);
-  const notifiedIds = useRef<Set<string>>(new Set());
-
-  // Trailer State
-  const [trailerUrl, setTrailerUrl] = useState<string | null>(null);
-  const [trailerTitle, setTrailerTitle] = useState<string | null>(null);
-
-  // Swipe State
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
-
-  // Load Settings on Mount
-  useEffect(() => {
-    const savedSafeMode = localStorage.getItem(SAFE_MODE_KEY);
-    if (savedSafeMode === 'true') setSafeMode(true);
-
-    if ('Notification' in window && Notification.permission === 'granted') {
-      setNotificationsEnabled(true);
-    }
-  }, []);
-
-  const handleToggleSafeMode = () => {
-    const newVal = !safeMode;
-    setSafeMode(newVal);
-    localStorage.setItem(SAFE_MODE_KEY, String(newVal));
-  };
-
-  const handleClearWatchlist = () => {
-    clearWatchlist();
-    // Reload to refresh the UI (remove bookmarks from cards)
-    window.location.reload();
-  };
 
   // Data Fetching
   const loadData = async () => {
@@ -75,93 +33,6 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate]);
 
-  // Notification Monitor
-  useEffect(() => {
-    if (!notificationsEnabled) return;
-
-    const checkReleases = () => {
-      const now = Date.now();
-      releases.forEach(release => {
-        const releaseTime = new Date(release.releaseDate).getTime();
-        const diff = releaseTime - now;
-        
-        // Keys to track specific notification types per release
-        const keyUpcoming = `${release.id}-upcoming`;
-        const keyLive = `${release.id}-live`;
-        
-        // 1. Upcoming Notification (15m before)
-        if (diff > 0 && diff <= 15 * 60 * 1000 && !notifiedIds.current.has(keyUpcoming)) {
-          new Notification(`Releasing Soon: ${release.title}`, {
-            body: `Starts in ${Math.ceil(diff / 60000)} minutes!`,
-            icon: release.imageUrl,
-            tag: keyUpcoming
-          });
-          notifiedIds.current.add(keyUpcoming);
-        }
-
-        // 2. Live Notification (Just released)
-        if (diff <= 0 && diff >= -2 * 60 * 1000 && !notifiedIds.current.has(keyLive)) {
-          new Notification(`IT'S LIVE: ${release.title}`, {
-            body: `The release has just dropped on ${release.source}. Watch now!`,
-            icon: release.imageUrl,
-            tag: keyLive
-          });
-          notifiedIds.current.add(keyLive);
-        }
-      });
-    };
-
-    const interval = setInterval(checkReleases, 10000); // Check every 10 seconds
-    return () => clearInterval(interval);
-  }, [releases, notificationsEnabled]);
-
-  const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) return;
-    
-    if (notificationsEnabled) {
-      setNotificationsEnabled(false);
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      setNotificationsEnabled(true);
-      new Notification("HentaiPulse", { body: "Notifications enabled! We'll alert you 15m before and right when releases drop." });
-    }
-  };
-
-  // Swipe Handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-    
-    if (isLeftSwipe) {
-      const next = new Date(currentDate);
-      next.setDate(next.getDate() + 1);
-      setCurrentDate(next);
-    }
-    
-    if (isRightSwipe) {
-      const prev = new Date(currentDate);
-      prev.setDate(prev.getDate() - 1);
-      setCurrentDate(prev);
-    }
-
-    // Reset
-    setTouchStart(0);
-    setTouchEnd(0);
-  };
-
   // Filtering Logic
   const filteredReleases = releases.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -171,23 +42,13 @@ const App: React.FC = () => {
   });
 
   return (
-    <div 
-      className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-200 font-sans selection:bg-purple-500/30"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      
-      <AgeGate />
+    <div className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-200 font-sans selection:bg-purple-500/30">
       
       <Header 
         currentDate={currentDate} 
         onDateChange={setCurrentDate}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        notificationsEnabled={notificationsEnabled}
-        onToggleNotifications={requestNotificationPermission}
-        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       <main className="max-w-7xl mx-auto px-4 py-6">
@@ -267,11 +128,6 @@ const App: React.FC = () => {
                 release={release} 
                 viewMode={viewMode} 
                 onAiClick={setSelectedReleaseForAi}
-                onTrailerClick={(url, title) => {
-                  setTrailerUrl(url);
-                  setTrailerTitle(title);
-                }}
-                safeMode={safeMode}
               />
             ))}
           </div>
@@ -283,27 +139,6 @@ const App: React.FC = () => {
       <PulseAIModal 
         release={selectedReleaseForAi} 
         onClose={() => setSelectedReleaseForAi(null)} 
-      />
-
-      {/* Trailer Modal */}
-      <TrailerModal 
-        trailerUrl={trailerUrl}
-        title={trailerTitle}
-        onClose={() => {
-          setTrailerUrl(null);
-          setTrailerTitle(null);
-        }}
-      />
-      
-      {/* Settings Modal */}
-      <SettingsModal 
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        notificationsEnabled={notificationsEnabled}
-        onToggleNotifications={requestNotificationPermission}
-        safeMode={safeMode}
-        onToggleSafeMode={handleToggleSafeMode}
-        onClearData={handleClearWatchlist}
       />
 
     </div>
