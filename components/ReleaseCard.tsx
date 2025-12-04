@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Clock, Star, Bookmark, Share2, Sparkles, Image as ImageIcon, Video } from 'lucide-react';
+import { Play, Clock, Star, Bookmark, Share2, Sparkles, Image as ImageIcon, Video, Check } from 'lucide-react';
 import { AnimeRelease, ViewMode, Category } from '../types';
 import { toggleWatchlist, isInWatchlist } from '../services/storage';
 
@@ -18,6 +18,7 @@ interface TimeState {
 
 const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick, onTrailerClick }) => {
   const [inWatchlist, setInWatchlist] = useState(false);
+  const [justAdded, setJustAdded] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<TimeState | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -57,6 +58,14 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
     e.stopPropagation();
     const added = toggleWatchlist(release.id);
     setInWatchlist(added);
+    
+    if (added) {
+      setJustAdded(true);
+      // Reset the "just added" state after animation
+      setTimeout(() => setJustAdded(false), 1500);
+    } else {
+      setJustAdded(false);
+    }
   };
 
   const getCategoryColor = (cat: Category) => {
@@ -158,8 +167,16 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
                     <Video size={12} /> Trailer
                 </button>
                )}
-               <button onClick={handleWatchlist} className={`p-1.5 rounded-md transition-colors ${inWatchlist ? 'text-pink-400 bg-pink-400/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
-                  <Bookmark size={14} fill={inWatchlist ? "currentColor" : "none"} />
+               <button 
+                  onClick={handleWatchlist} 
+                  className={`p-1.5 rounded-md transition-all duration-300 ${inWatchlist ? 'text-pink-400 bg-pink-400/10' : 'text-slate-400 hover:text-white hover:bg-white/5'} ${justAdded ? 'scale-110 bg-pink-400/20' : ''}`}
+                  title={inWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
+                >
+                  {justAdded ? (
+                    <Check size={14} className="text-pink-400 animate-in zoom-in duration-300" />
+                  ) : (
+                    <Bookmark size={14} fill={inWatchlist ? "currentColor" : "none"} />
+                  )}
                </button>
             </div>
          </div>
@@ -252,9 +269,14 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({ release, viewMode, onAiClick,
              </button>
              <button 
                 onClick={handleWatchlist}
-                className={`transition-colors ${inWatchlist ? 'text-pink-500' : 'text-slate-400 hover:text-white'}`}
+                className={`transition-all duration-300 transform ${inWatchlist ? 'text-pink-500' : 'text-slate-400 hover:text-white'} ${justAdded ? 'scale-125 rotate-12' : 'hover:scale-110'}`}
+                title={inWatchlist ? "Remove from Watchlist" : "Add to Watchlist"}
               >
-                <Bookmark size={16} fill={inWatchlist ? "currentColor" : "none"} />
+                {justAdded ? (
+                   <Check size={16} className="animate-in zoom-in duration-300" />
+                ) : (
+                   <Bookmark size={16} fill={inWatchlist ? "currentColor" : "none"} />
+                )}
              </button>
            </div>
         </div>
