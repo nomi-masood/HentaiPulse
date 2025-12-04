@@ -1,23 +1,26 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Helper to retrieve API Key from either Node-style process.env (local/preview) 
-// or Vite-style import.meta.env (Netlify/Production)
+// Helper to retrieve API Key safely for Vite/Netlify environments
 const getApiKey = (): string | undefined => {
-  // Check for Vite environment variable (Netlify standard)
-  // @ts-ignore: import.meta is a standard feature in modern bundlers like Vite
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) {
-    // @ts-ignore
-    return import.meta.env.VITE_API_KEY;
+  // 1. Check for Vite environment variable (Standard for Netlify)
+  // We use a try-catch block to safely access import.meta which can vary by environment
+  try {
+    // @ts-ignore: import.meta is valid in Vite
+    if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) {
+      // @ts-ignore
+      return import.meta.env.VITE_API_KEY;
+    }
+  } catch (e) {
+    // Continue to fallback
   }
   
-  // Check for Node/Process environment variable
-  // This is kept for the AI Studio preview environment compatibility
+  // 2. Fallback for local Node/Preview environments (if not using Vite)
   try {
     if (typeof process !== 'undefined' && process.env?.API_KEY) {
       return process.env.API_KEY;
     }
   } catch {
-    // Ignore reference errors if process is not defined in the browser
+    // Ignore reference errors
   }
 
   return undefined;
@@ -26,11 +29,13 @@ const getApiKey = (): string | undefined => {
 const apiKey = getApiKey();
 
 // Initialize Gemini Client
+// We pass the key if it exists, otherwise calls will fail gracefully in the catch block below
 const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 export const getReleaseInsight = async (title: string, description: string): Promise<string> => {
   if (!apiKey) {
-    return "Configuration Error: API Key missing. Please set VITE_API_KEY in your Netlify environment variables.";
+    console.warn("Gemini API Key missing. Please set 'VITE_API_KEY' in your Netlify Site Settings.");
+    return "AI Insights require a configured API Key.";
   }
 
   try {
