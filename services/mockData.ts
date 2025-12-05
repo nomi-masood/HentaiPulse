@@ -1,88 +1,13 @@
 import { AnimeRelease, Category } from '../types';
 
-const TITLES_PREFIX = ["Secret", "Midnight", "Forbidden", "Campus", "Dungeon", "Cyber", "Magical", "Stepsister", "Office", "Nurse", "Elite", "Private", "Beachside", "Infinite"];
-const TITLES_SUFFIX = ["Lovers", "Lesson", "Chronicles", "Desire", "Attack", "Protocol", "Vacation", "Fantasy", "Teacher", "Diaries", "Paradox", "Bondage", "Resort", "Harem"];
-const SOURCES = ["Hentai Haven", "HentaiFF", "HentaiSun", "EroEroNews", "Hanime.tv"];
-const TAGS_POOL = ["Romance", "Vanilla", "NTR", "Mind Break", "Fantasy", "Sci-Fi", "School", "Office", "Monster", "Succubus", "Elf", "Maid", "Tutor", "Uncensored"];
-const IMAGES_POOL = [
-  'https://picsum.photos/400/600?random=1',
-  'https://picsum.photos/400/600?random=2',
-  'https://picsum.photos/400/600?random=3',
-  'https://picsum.photos/400/600?random=4',
-  'https://picsum.photos/400/600?random=5',
-  'https://picsum.photos/400/600?random=6',
-  'https://picsum.photos/400/600?random=7',
-  'https://picsum.photos/400/600?random=8',
-];
-
-// Simple pseudo-random generator seeded by a string (the date)
-// Ensures that for a specific date, the "random" data is always the same.
-const mulberry32 = (a: number) => {
-  return function() {
-    var t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
-}
-
-const generateMockSchedule = (date: Date): AnimeRelease[] => {
-  // Create a seed from the date string (YYYY-MM-DD)
-  const dateStr = date.toISOString().split('T')[0];
-  const seed = dateStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const rand = mulberry32(seed);
-
-  const numReleases = Math.floor(rand() * 5) + 4; // 4 to 8 releases per day
-  const releases: AnimeRelease[] = [];
-
-  for (let i = 0; i < numReleases; i++) {
-    // Generate Title
-    const tPrefix = TITLES_PREFIX[Math.floor(rand() * TITLES_PREFIX.length)];
-    const tSuffix = TITLES_SUFFIX[Math.floor(rand() * TITLES_SUFFIX.length)];
-    const title = `${tPrefix} ${tSuffix}${rand() > 0.8 ? ': The Animation' : ''}`;
-
-    // Generate Time for this specific date
-    const releaseDate = new Date(date);
-    const hour = Math.floor(rand() * 24);
-    const minute = Math.floor(rand() * 60);
-    releaseDate.setHours(hour, minute, 0, 0);
-
-    // Pick Category
-    const catRoll = rand();
-    let category = Category.Episode;
-    if (catRoll > 0.7) category = Category.OVA;
-    if (catRoll > 0.9) category = Category.Uncensored;
-
-    // Pick Tags (2-4 tags)
-    const numTags = Math.floor(rand() * 3) + 2;
-    const itemTags = new Set<string>();
-    while(itemTags.size < numTags) {
-      itemTags.add(TAGS_POOL[Math.floor(rand() * TAGS_POOL.length)]);
-    }
-
-    releases.push({
-      id: `${dateStr}-${i}`,
-      title: title,
-      description: `A generated synopsis for ${title}. In a world where ${itemTags.values().next().value} is common, characters explore their deepest desires.`,
-      imageUrl: `https://picsum.photos/400/600?random=${Math.floor(rand() * 1000)}`,
-      releaseDate: releaseDate.toISOString(),
-      category: category,
-      episodeNumber: category === Category.Episode ? Math.floor(rand() * 4) + 1 : undefined,
-      source: SOURCES[Math.floor(rand() * SOURCES.length)],
-      rating: Number((3.5 + rand() * 1.5).toFixed(1)), // 3.5 to 5.0
-      tags: Array.from(itemTags),
-    });
-  }
-
-  // Sort by time
-  return releases.sort((a, b) => new Date(a.releaseDate).getTime() - new Date(b.releaseDate).getTime());
-};
-
 const ANILIST_API = 'https://graphql.anilist.co';
 
 const SCHEDULE_QUERY = `
-query ($start: Int, $end: Int) {
-  Page(page: 1, perPage: 50) {
+query ($start: Int, $end: Int, $page: Int) {
+  Page(page: $page, perPage: 50) {
+    pageInfo {
+      hasNextPage
+    }
     airingSchedules(airingAt_greater: $start, airingAt_lesser: $end, sort: TIME) {
       id
       airingAt
@@ -104,6 +29,10 @@ query ($start: Int, $end: Int) {
         isAdult
         genres
         siteUrl
+        trailer {
+          id
+          site
+        }
       }
     }
   }
@@ -119,32 +48,46 @@ export const fetchSchedule = async (date: Date): Promise<AnimeRelease[]> => {
   const variables = {
     start: Math.floor(startOfDay.getTime() / 1000),
     end: Math.floor(endOfDay.getTime() / 1000),
+    page: 1,
   };
 
   try {
-    const response = await fetch(ANILIST_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        query: SCHEDULE_QUERY,
-        variables,
-      }),
-    });
+    let allSchedules: any[] = [];
+    let hasNextPage = true;
 
-    const result = await response.json();
+    // Fetch up to 5 pages to capture all releases for the day
+    while (hasNextPage && variables.page <= 5) {
+      const response = await fetch(ANILIST_API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          query: SCHEDULE_QUERY,
+          variables,
+        }),
+      });
 
-    if (result.errors) {
-      console.warn('AniList API Errors (Using generated fallback):', result.errors);
-      return generateMockSchedule(date);
+      const result = await response.json();
+
+      if (result.errors) {
+        console.warn('AniList API Error:', result.errors);
+        if (variables.page === 1) return []; // Return empty if first page fails
+        break;
+      }
+
+      const pageData = result.data?.Page;
+      if (pageData?.airingSchedules) {
+        allSchedules = [...allSchedules, ...pageData.airingSchedules];
+      }
+
+      hasNextPage = pageData?.pageInfo?.hasNextPage;
+      variables.page++;
     }
 
-    const schedules = result.data?.Page?.airingSchedules || [];
-
     // Filter strictly for Hentai/Adult content
-    const hentaiReleases = schedules.filter((item: any) => {
+    const hentaiReleases = allSchedules.filter((item: any) => {
       const media = item.media;
       return media.isAdult === true || media.genres?.includes('Hentai');
     }).map((item: any) => {
@@ -162,6 +105,11 @@ export const fetchSchedule = async (date: Date): Promise<AnimeRelease[]> => {
       const rawDesc = media.description || 'No description available.';
       const description = rawDesc.replace(/<[^>]*>?/gm, '');
 
+      let trailerUrl = undefined;
+      if (media.trailer?.site === 'youtube' && media.trailer?.id) {
+        trailerUrl = `https://www.youtube.com/watch?v=${media.trailer.id}`;
+      }
+
       return {
         id: media.id.toString(),
         title: title,
@@ -173,18 +121,14 @@ export const fetchSchedule = async (date: Date): Promise<AnimeRelease[]> => {
         source: 'AniList',
         rating: media.averageScore ? media.averageScore / 10 : 0,
         tags: media.genres || [],
+        trailerUrl,
       };
     });
-
-    // If API returns nothing (likely due to auth), use generated data for this specific date
-    if (hentaiReleases.length === 0) {
-      return generateMockSchedule(date);
-    }
 
     return hentaiReleases;
 
   } catch (error) {
-    console.error('Fetch failed, using generated fallback:', error);
-    return generateMockSchedule(date);
+    console.error('Fetch failed:', error);
+    return [];
   }
 };

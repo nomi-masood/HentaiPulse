@@ -1,6 +1,7 @@
 import { AnimeRelease } from '../types';
 
 const WATCHLIST_KEY = 'hentaipulse_watchlist';
+const SAFE_MODE_KEY = 'hentaipulse_safemode';
 
 export const getWatchlist = (): string[] => {
   try {
@@ -34,4 +35,17 @@ export const toggleWatchlist = (id: string): boolean => {
 export const isInWatchlist = (id: string): boolean => {
   const current = getWatchlist();
   return current.includes(id);
+};
+
+export const clearWatchlist = (): void => {
+  localStorage.removeItem(WATCHLIST_KEY);
+  console.log(`[Audit] Watchlist Cleared at ${new Date().toISOString()}`);
+};
+
+export const getSafeMode = (): boolean => {
+  return localStorage.getItem(SAFE_MODE_KEY) === 'true';
+};
+
+export const setSafeModeStorage = (enabled: boolean): void => {
+  localStorage.setItem(SAFE_MODE_KEY, String(enabled));
 };

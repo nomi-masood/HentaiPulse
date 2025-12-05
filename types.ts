@@ -15,6 +15,7 @@ export interface AnimeRelease {
   episodeNumber?: number;
   rating: number;
   tags: string[];
+  trailerUrl?: string;
 }
 
 export enum ViewMode {
