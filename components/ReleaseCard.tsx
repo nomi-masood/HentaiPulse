@@ -180,6 +180,8 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({
     return base + "opacity-100 blur-0 group-hover:scale-105 scale-100";
   };
 
+  const textBlurClass = safeMode ? 'blur-sm group-hover:blur-0 select-none transition-all duration-300' : '';
+
   if (viewMode === ViewMode.List) {
     return (
       <div 
@@ -211,6 +213,11 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({
                 <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getCategoryColor(release.category)} uppercase tracking-wider`}>
                   {release.category}
                 </span>
+                {release.episodeNumber && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-slate-700 bg-slate-800 text-slate-300 font-medium">
+                    EP {release.episodeNumber}
+                  </span>
+                )}
                 <span className="flex items-center gap-1 text-amber-400 text-xs font-medium">
                   <Star size={10} fill="currentColor" /> {release.rating}
                 </span>
@@ -220,12 +227,12 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({
               </div>
             </div>
             
-            <h3 className="text-white font-medium truncate mb-1 group-hover:text-purple-300 transition-colors text-base">{release.title}</h3>
+            <h3 className={`text-white font-medium truncate mb-1 group-hover:text-purple-300 transition-colors text-base ${textBlurClass}`}>{release.title}</h3>
             
             <div className="flex items-center gap-2 text-xs text-slate-400 mb-3">
                <span className="text-purple-400 font-medium">{release.source}</span>
                <span className="text-slate-600">•</span>
-               <span className="truncate max-w-[200px]">{release.tags.slice(0, 3).join(', ')}</span>
+               <span className={`truncate max-w-[200px] ${textBlurClass}`}>{release.tags.slice(0, 3).join(', ')}</span>
             </div>
             
             <div className="flex gap-2">
@@ -287,9 +294,16 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({
         
         {/* Top Badges */}
         <div className="absolute top-3 left-3 right-3 flex justify-between items-start z-10 pointer-events-none">
-          <span className={`text-[10px] px-2 py-1 rounded-md border font-medium backdrop-blur-md shadow-sm ${getCategoryColor(release.category)}`}>
-            {release.category}
-          </span>
+          <div className="flex flex-col gap-2 items-start">
+             <span className={`text-[10px] px-2 py-1 rounded-md border font-medium backdrop-blur-md shadow-sm ${getCategoryColor(release.category)}`}>
+               {release.category}
+             </span>
+             {release.episodeNumber && (
+               <span className="text-[10px] px-2 py-1 rounded-md border border-white/10 bg-black/60 text-white font-medium backdrop-blur-md shadow-sm">
+                 EP {release.episodeNumber}
+               </span>
+             )}
+          </div>
           <div>
             {renderTimer()}
           </div>
@@ -322,11 +336,11 @@ const ReleaseCard: React.FC<ReleaseCardProps> = ({
            </div>
         </div>
         
-        <h3 className="text-white font-medium leading-tight mb-2 line-clamp-2 group-hover:text-purple-300 transition-colors">
+        <h3 className={`text-white font-medium leading-tight mb-2 line-clamp-2 group-hover:text-purple-300 transition-colors ${textBlurClass}`}>
           {release.title}
         </h3>
         
-        <div className="flex flex-wrap gap-1.5 mb-4">
+        <div className={`flex flex-wrap gap-1.5 mb-4 ${textBlurClass}`}>
           {release.tags.slice(0, 3).map(tag => (
             <span key={tag} className="text-[10px] text-slate-400 px-1.5 py-0.5 rounded border border-slate-700/50 bg-slate-800/30">
               {tag}

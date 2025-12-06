@@ -6,6 +6,7 @@ import PulseAIModal from './components/PulseAIModal';
 import ReleaseDetailModal from './components/ReleaseDetailModal';
 import SettingsModal from './components/SettingsModal';
 import TrailerModal from './components/TrailerModal';
+import EmptyState, { EmptyStateType } from './components/EmptyState';
 import { AnimeRelease, ViewMode, Category } from './types';
 import { fetchSchedule } from './services/mockData';
 import { getSafeMode, setSafeModeStorage, clearWatchlist, getWatchlist } from './services/storage';
@@ -15,7 +16,11 @@ const App: React.FC = () => {
   const [releases, setReleases] = useState<AnimeRelease[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Grid);
+  
+  // Search State
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [watchlistVersion, setWatchlistVersion] = useState(0); // Forces re-render of watchlist filter
@@ -48,6 +53,17 @@ const App: React.FC = () => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate]);
+
+  // Debounce Search Query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
 
   // Check for notifications permission on mount
   useEffect(() => {
@@ -142,15 +158,38 @@ const App: React.FC = () => {
   // Filtering Logic
   const filteredReleases = useMemo(() => {
     const watchlist = getWatchlist();
+    const query = debouncedSearchQuery.toLowerCase();
+    
     return releases.filter(item => {
-      const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            item.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      const matchesSearch = item.title.toLowerCase().includes(query) || 
+                            item.description.toLowerCase().includes(query) ||
+                            item.tags.some(t => t.toLowerCase().includes(query));
+                            
       const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
       const matchesWatchlist = !showWatchlist || watchlist.includes(item.id);
       
       return matchesSearch && matchesCategory && matchesWatchlist;
     });
-  }, [releases, searchQuery, activeCategory, showWatchlist, watchlistVersion]);
+  }, [releases, debouncedSearchQuery, activeCategory, showWatchlist, watchlistVersion]);
+
+  // Determine Empty State Type
+  const getEmptyStateType = (): EmptyStateType => {
+    if (showWatchlist) return 'watchlist';
+    if (debouncedSearchQuery || activeCategory !== 'All') return 'search';
+    return 'no-data';
+  };
+
+  const handleEmptyStateAction = () => {
+    if (showWatchlist) {
+      setShowWatchlist(false);
+    } else if (debouncedSearchQuery || activeCategory !== 'All') {
+      setSearchQuery('');
+      setDebouncedSearchQuery(''); // Immediate clear
+      setActiveCategory('All');
+    } else {
+      setCurrentDate(new Date());
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-200 font-sans selection:bg-purple-500/30">
@@ -242,30 +281,28 @@ const App: React.FC = () => {
              <p className="text-slate-500 font-light tracking-wide animate-pulse">Syncing Schedules...</p>
           </div>
         ) : filteredReleases.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-500">
-             <p className="text-lg mb-2">
-               {showWatchlist ? "Your watchlist is empty." : "No releases found."}
-             </p>
-             <button 
-               onClick={() => { setSearchQuery(''); setActiveCategory('All'); setShowWatchlist(false); }} 
-               className="text-purple-400 hover:underline text-sm"
-             >
-               {showWatchlist ? "Browse All Releases" : "Clear Filters"}
-             </button>
-          </div>
+          <EmptyState 
+            type={getEmptyStateType()} 
+            onAction={handleEmptyStateAction} 
+          />
         ) : (
           <div className={`grid gap-6 ${viewMode === ViewMode.Grid ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2'}`}>
-            {filteredReleases.map(release => (
-              <ReleaseCard 
-                key={release.id} 
-                release={release} 
-                viewMode={viewMode}
-                safeMode={safeMode}
-                onAiClick={setSelectedReleaseForAi}
-                onTrailerClick={handleTrailerClick}
-                onClick={setSelectedReleaseDetail}
-                onToggleWatchlist={handleWatchlistUpdate}
-              />
+            {filteredReleases.map((release, index) => (
+              <div 
+                key={`${release.id}-${viewMode}-${activeCategory}-${showWatchlist}-${debouncedSearchQuery}`}
+                className="animate-card-entry h-full"
+                style={{ animationDelay: `${Math.min(index * 50, 1000)}ms` }}
+              >
+                <ReleaseCard 
+                  release={release} 
+                  viewMode={viewMode}
+                  safeMode={safeMode}
+                  onAiClick={setSelectedReleaseForAi}
+                  onTrailerClick={handleTrailerClick}
+                  onClick={setSelectedReleaseDetail}
+                  onToggleWatchlist={handleWatchlistUpdate}
+                />
+              </div>
             ))}
           </div>
         )}

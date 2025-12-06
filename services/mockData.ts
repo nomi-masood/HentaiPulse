@@ -28,6 +28,11 @@ query ($start: Int, $end: Int, $page: Int) {
         averageScore
         isAdult
         genres
+        studios(isMain: true) {
+          nodes {
+            name
+          }
+        }
         siteUrl
         trailer {
           id
@@ -110,6 +115,9 @@ export const fetchSchedule = async (date: Date): Promise<AnimeRelease[]> => {
         trailerUrl = `https://www.youtube.com/watch?v=${media.trailer.id}`;
       }
 
+      // Extract main studio name or fallback
+      const studio = media.studios?.nodes?.[0]?.name || 'AniList';
+
       return {
         id: media.id.toString(),
         title: title,
@@ -118,7 +126,7 @@ export const fetchSchedule = async (date: Date): Promise<AnimeRelease[]> => {
         releaseDate: new Date(item.airingAt * 1000).toISOString(),
         category: category,
         episodeNumber: item.episode,
-        source: 'AniList',
+        source: studio,
         rating: media.averageScore ? media.averageScore / 10 : 0,
         tags: media.genres || [],
         trailerUrl,

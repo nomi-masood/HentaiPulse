@@ -30,31 +30,36 @@ const ReleaseDetailModal: React.FC<ReleaseDetailModalProps> = ({
     if (release) {
       setInWatchlist(isInWatchlist(release.id));
       
-      // Calculate related releases with weighted scoring
-      // Algorithm:
-      // 1. Tags match = 2 points each
-      // 2. Same Source = 3 points (often indicates same publisher/studio style)
-      // 3. Same Category = 1 point
+      // Calculate related releases with a sophisticated weighted scoring system
+      // Priority Hierarchy: Tags (Highest) > Source (Medium) > Category (Lowest)
       const related = allReleases
         .filter(r => r.id !== release.id)
         .map(r => {
           let score = 0;
           
-          // Overlapping tags
+          // 1. Tags Match (Highest Priority)
+          // Each matching tag contributes significantly to the score.
+          // Weight: 15 points per tag.
+          // Ensures that even a single specific tag match outweighs source/category alone.
           const sharedTags = r.tags.filter(tag => release.tags.includes(tag)).length;
-          score += sharedTags * 2;
+          score += sharedTags * 15;
 
-          // Same Source
-          if (r.source === release.source) score += 3;
+          // 2. Source/Studio Match (Medium Priority)
+          // Releases from the same studio are often relevant.
+          // Weight: 10 points.
+          const sameSource = r.source && r.source !== 'AniList' && r.source === release.source;
+          if (sameSource) score += 10;
 
-          // Same Category
-          if (r.category === release.category) score += 1;
+          // 3. Category Match (Lowest Priority)
+          // Acts as a tie-breaker for similar content types (OVA vs Episode).
+          // Weight: 5 points.
+          if (r.category === release.category) score += 5;
 
           return { release: r, score };
         })
-        .filter(item => item.score > 0) // Must have at least some relevance
-        .sort((a, b) => b.score - a.score) // Descending score
-        .slice(0, 4) // Limit to 4
+        .filter(item => item.score > 0) // Filter out completely irrelevant releases
+        .sort((a, b) => b.score - a.score) // Sort by relevance score descending
+        .slice(0, 4) // Limit to top 4 recommendations
         .map(item => item.release);
 
       setRelatedReleases(related);
@@ -152,6 +157,11 @@ const ReleaseDetailModal: React.FC<ReleaseDetailModalProps> = ({
                         <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-600/90 text-white shadow-lg shadow-purple-900/50">
                             {release.category}
                         </span>
+                        {release.episodeNumber && (
+                            <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-800/80 text-white border border-white/10 backdrop-blur-sm">
+                                EP {release.episodeNumber}
+                            </span>
+                        )}
                         {release.rating > 0 && (
                             <div className="flex items-center gap-1.5 text-amber-400 font-bold text-sm bg-black/30 px-2 py-1 rounded-full backdrop-blur-sm">
                                 <Star size={14} fill="currentColor" />
