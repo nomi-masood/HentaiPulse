@@ -31,29 +31,36 @@ const ReleaseDetailModal: React.FC<ReleaseDetailModalProps> = ({
       setInWatchlist(isInWatchlist(release.id));
       
       // Calculate related releases with a sophisticated weighted scoring system
-      // Priority Hierarchy: Tags (Highest) > Source (Medium) > Category (Lowest)
+      // Priority: Series Match > Tags > Source > Category
       const related = allReleases
         .filter(r => r.id !== release.id)
         .map(r => {
           let score = 0;
           
-          // 1. Tags Match (Highest Priority)
-          // Each matching tag contributes significantly to the score.
-          // Weight: 15 points per tag.
-          // Ensures that even a single specific tag match outweighs source/category alone.
-          const sharedTags = r.tags.filter(tag => release.tags.includes(tag)).length;
-          score += sharedTags * 15;
+          // 1. Series/Title Match (Highest Priority)
+          // Normalize titles to find other episodes of the same series
+          // Removes "Episode X", "Vol X", etc. to compare the base series name
+          const normalizeTitle = (t: string) => t.toLowerCase().replace(/(\s(episode|ep|vol|ova|special)\s*\.?\s*\d+).*/i, '').trim();
+          const t1 = normalizeTitle(release.title);
+          const t2 = normalizeTitle(r.title);
+          
+          // Exact match of base title or significant inclusion
+          if (t1 === t2 || (t1.length > 4 && t2.includes(t1)) || (t2.length > 4 && t1.includes(t2))) {
+            score += 30;
+          }
 
-          // 2. Source/Studio Match (Medium Priority)
-          // Releases from the same studio are often relevant.
-          // Weight: 10 points.
+          // 2. Tags Match (High Priority)
+          const sharedTags = r.tags.filter(tag => release.tags.includes(tag)).length;
+          score += sharedTags * 5;
+
+          // 3. Source/Studio Match (Medium Priority)
+          // Strong indicator of related content style
           const sameSource = r.source && r.source !== 'AniList' && r.source === release.source;
           if (sameSource) score += 10;
 
-          // 3. Category Match (Lowest Priority)
-          // Acts as a tie-breaker for similar content types (OVA vs Episode).
-          // Weight: 5 points.
-          if (r.category === release.category) score += 5;
+          // 4. Category Match (Low Priority)
+          // Fallback to ensure we fill slots if possible
+          if (r.category === release.category) score += 2;
 
           return { release: r, score };
         })

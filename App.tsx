@@ -2,18 +2,20 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LayoutGrid, List as ListIcon, Loader2, RefreshCw, Filter, Bookmark } from 'lucide-react';
 import Header from './components/Header';
 import ReleaseCard from './components/ReleaseCard';
+import HeroSection from './components/HeroSection';
 import PulseAIModal from './components/PulseAIModal';
 import ReleaseDetailModal from './components/ReleaseDetailModal';
 import SettingsModal from './components/SettingsModal';
 import TrailerModal from './components/TrailerModal';
 import EmptyState, { EmptyStateType } from './components/EmptyState';
 import { AnimeRelease, ViewMode, Category } from './types';
-import { fetchSchedule } from './services/mockData';
+import { fetchSchedule, fetchRandomSuggestions } from './services/mockData';
 import { getSafeMode, setSafeModeStorage, clearWatchlist, getWatchlist } from './services/storage';
 
 const App: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [releases, setReleases] = useState<AnimeRelease[]>([]);
+  const [suggestions, setSuggestions] = useState<AnimeRelease[]>([]); // New state for random suggestions
   const [loading, setLoading] = useState<boolean>(true);
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Grid);
   
@@ -39,9 +41,16 @@ const App: React.FC = () => {
   // Data Fetching
   const loadData = async () => {
     setLoading(true);
+    setSuggestions([]); // Reset suggestions on load
     try {
       const data = await fetchSchedule(currentDate);
       setReleases(data);
+      
+      // If no releases found for this date, fetch suggestions
+      if (data.length === 0) {
+        const randomPicks = await fetchRandomSuggestions();
+        setSuggestions(randomPicks);
+      }
     } catch (err) {
       console.error("Failed to load releases", err);
     } finally {
@@ -172,6 +181,22 @@ const App: React.FC = () => {
     });
   }, [releases, debouncedSearchQuery, activeCategory, showWatchlist, watchlistVersion]);
 
+  // Determine Featured Release (Top Rated of the current set)
+  // Only show hero if:
+  // 1. We have results
+  // 2. Search is empty (Hero takes up too much space during search)
+  // 3. Not in Watchlist mode (Watchlist is personal, hero feels like "Storefront")
+  const featuredRelease = useMemo(() => {
+    if (debouncedSearchQuery || showWatchlist || filteredReleases.length === 0) return null;
+    
+    // Sort by rating descending, then by release date (newest first)
+    return [...filteredReleases].sort((a, b) => {
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+    })[0];
+  }, [filteredReleases, debouncedSearchQuery, showWatchlist]);
+
+
   // Determine Empty State Type
   const getEmptyStateType = (): EmptyStateType => {
     if (showWatchlist) return 'watchlist';
@@ -204,6 +229,17 @@ const App: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 py-6">
         
+        {/* Spotlight Hero Section */}
+        {featuredRelease && !loading && (
+          <HeroSection 
+            release={featuredRelease}
+            safeMode={safeMode}
+            onAiClick={setSelectedReleaseForAi}
+            onTrailerClick={handleTrailerClick}
+            onClick={setSelectedReleaseDetail}
+          />
+        )}
+
         {/* Control Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           
@@ -283,7 +319,10 @@ const App: React.FC = () => {
         ) : filteredReleases.length === 0 ? (
           <EmptyState 
             type={getEmptyStateType()} 
-            onAction={handleEmptyStateAction} 
+            onAction={handleEmptyStateAction}
+            suggestions={suggestions}
+            onSelectRelease={setSelectedReleaseDetail}
+            safeMode={safeMode}
           />
         ) : (
           <div className={`grid gap-6 ${viewMode === ViewMode.Grid ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-2'}`}>
@@ -329,7 +368,7 @@ const App: React.FC = () => {
       {/* Detail Modal */}
       <ReleaseDetailModal
         release={selectedReleaseDetail}
-        allReleases={releases}
+        allReleases={releases.length > 0 ? releases : suggestions} // Allow navigation within suggestions too
         onClose={() => setSelectedReleaseDetail(null)}
         onAiClick={setSelectedReleaseForAi}
         onSelectRelease={setSelectedReleaseDetail}

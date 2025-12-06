@@ -65,6 +65,34 @@
       .animate-card-entry {
         animation: fadeInUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
       }
+
+      /* Cinematic Animations (Mimicking tailwindcss-animate) */
+      .animate-in {
+        animation-duration: 0.7s;
+        animation-fill-mode: both;
+        animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .fade-in { animation-name: fadeIn; }
+
+      @keyframes slideInLeft { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+      .slide-in-from-left-4 { animation-name: slideInLeft; }
+
+      @keyframes slideInRight { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+      .slide-in-from-right-4 { animation-name: slideInRight; }
+
+      @keyframes slideInTop { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      .slide-in-from-top-4 { animation-name: slideInTop; }
+
+      @keyframes slideInBottom { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      .slide-in-from-bottom-4 { animation-name: slideInBottom; }
+      
+      @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      .zoom-in { animation-name: zoomIn; }
+      
+      @keyframes zoomIn95 { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      .zoom-in-95 { animation-name: zoomIn95; }
     </style>
   <script type="importmap">
 {
